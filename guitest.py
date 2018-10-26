@@ -3,7 +3,7 @@ import sys
 cart1=[]
 cart2=[]
 s=0
-msgbox('welcome fu*king guys')
+msgbox('welcome to gamers')
 while 1:
    c0=buttonbox('types of games','online games',('pubg','cod','fortnite'))
    if c0=='pubg':
