@@ -1,10 +1,23 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+"""
+Author: Leo Vidarte <http://nerdlabs.com.ar>
+
+This is free software,
+you can redistribute it and/or modify it
+under the terms of the GPL version 3
+as published by the Free Software Foundation.
+
+"""
+
 import random
-import tkinter as tk
-from tkinter import *
+import Tkinter as tk
 import sys
 
 
-class App(tk.Frame):
+class Application(tk.Frame):
+
     def __init__(self, width=21, height=21, size=10):
         tk.Frame.__init__(self)
         self.maze = Maze(width, height)
@@ -14,7 +27,7 @@ class App(tk.Frame):
         self.create_widgets()
         self.draw_maze()
         self.create_events()
-        
+
     def create_widgets(self):
         width = self.maze.width * self.size
         height = self.maze.height * self.size
@@ -35,7 +48,7 @@ class App(tk.Frame):
                 if self.maze.start_cell == (j, i):
                     self.cell = id
 
-        self.canvas.tag_raise(self.cell) 
+        self.canvas.tag_raise(self.cell) # bring to front
         self.status.config(text='Movidas mínimas: %d' % self.maze.steps)
 
     def create_events(self):
@@ -53,20 +66,17 @@ class App(tk.Frame):
             if self.check_move(0, 1):
                 self.canvas.move(self.cell, 0, self.size)
                 self.steps += 1
-                self.get_color(0, self.size)
         if event.keysym == 'Left':
             if self.check_move(-1, 0):
                 self.canvas.move(self.cell, -self.size, 0)
                 self.steps += 1
-                self.get_color( -self.size,0)
         if event.keysym == 'Right':
             if self.check_move(1, 0):
                 self.canvas.move(self.cell, self.size, 0)
                 self.steps += 1
-                self.get_color(self.size,0)
 
         args = (self.steps, self.maze.steps)
-        self.status.config(text='Moves: %d/%d' % args)
+        self.status.config(text='Movidas: %d/%d' % args)
         self.check_status()
 
     def check_move(self, x, y):
@@ -84,18 +94,37 @@ class App(tk.Frame):
     def check_status(self):
         if self.maze.exit_cell == self.get_cell_coords():
             args = (self.steps, self.maze.steps)
-            self.status.config(text='won in %d/%d movidas!' % args)
+            self.status.config(text='Resuelto en %d/%d movidas!' % args)
 
     def get_color(self, x, y):
         if self.maze.start_cell == (x, y):
-            return 'blue'
+            return 'red'
         if self.maze.exit_cell == (x, y):
             return 'green'
         if self.maze.maze[y][x] == 1:
             return 'black'
-        
+
 
 class Maze(object):
+
+    """
+
+    ## MAZE GENERATOR ##
+
+    Based on Depth-first search algorithm:
+    http://en.wikipedia.org/wiki/Maze_generation_algorithm#Depth-first_search
+
+      1. Start at a particular cell and call it the "exit."
+      2. Mark the current cell as visited, and get a list of its neighbors.
+         For each neighbor, starting with a randomly selected neighbor:
+           1. If that neighbor hasn't been visited, remove the wall between
+              this cell and that neighbor, and then recurse with that neighbor as
+              the current cell.
+
+    __author__ = "Leonardo Vidarte"
+
+
+    """
 
     def __init__(self, width=21, height=21, exit_cell=(1, 1)):
         self.width = width
@@ -104,16 +133,16 @@ class Maze(object):
         self.create()
 
     def create(self):
-        self.maze = [[1] * (self.width+1) for _ in range(self.height+1)]
+        self.maze = [[1] * self.width for _ in range(self.height)] # full of walls
         self.start_cell = None
         self.steps = None
-        self.recursion_depth = 0
+        self.recursion_depth = None
         self._visited_cells = []
         self._visit_cell(self.exit_cell)
 
     def _visit_cell(self, cell, depth=0):
         x, y = cell
-        self.maze[y][x] = 0                                    
+        self.maze[y][x] = 0 # remove wall
         self._visited_cells.append(cell)
         neighbors = self._get_neighbors(cell)
         random.shuffle(neighbors)
@@ -124,7 +153,22 @@ class Maze(object):
         self._update_start_cell(cell, depth)
 
     def _get_neighbors(self, cell):
-       
+        """
+        Get the cells next to the cell
+
+        Example:
+          Given the following mazes
+          The a neighbor's are b
+
+          # # # # # # #     # # # # # # #
+          # # # b # # #     # a # b # # #
+          # # # # # # #     # # # # # # #
+          # b # a # b #     # b # # # # #
+          # # # # # # #     # # # # # # #
+          # # # b # # #     # # # # # # #
+          # # # # # # #     # # # # # # #
+
+        """
         x, y = cell
         neighbors = []
 
@@ -144,18 +188,31 @@ class Maze(object):
         return neighbors
 
     def _remove_wall(self, cell, neighbor):
+        """
+        Remove the wall between two cells
+
+        Example:
+          Given the cells a and b
+          The wall between them is w
+
+          # # # # #
+          # # # # #
+          # a w b #
+          # # # # #
+          # # # # #
+
+        """
         x0, y0 = cell
         x1, y1 = neighbor
         # Vertical
         if x0 == x1:
             x = x0
             y = (y0 + y1) / 2
-          
         # Horizontal
         if y0 == y1:
             x = (x0 + x1) / 2
             y = y0
-        self.maze[int(y)][int(x)] = 0 # remove wall
+        self.maze[y][x] = 0 # remove wall
 
     def _update_start_cell(self, cell, depth):
         if depth > self.recursion_depth:
@@ -163,7 +220,44 @@ class Maze(object):
             self.start_cell = cell
             self.steps = depth * 2 # wall + cell
 
-sys.setrecursionlimit(1000)
+    def show(self, verbose=False):
+        MAP = {0: ' ', # path
+               1: '#', # wall
+               2: 'B', # exit
+               3: 'A', # start
+              }
+        x0, y0 = self.exit_cell
+        self.maze[y0][x0] = 2
+        x1, y1 = self.start_cell
+        self.maze[y1][x1] = 3
+        for row in self.maze:
+            print (' '.join([MAP[col] for col in row]))
+        if verbose:
+            print ("Steps from A to B:", self.steps)
 
-e=App(40,40,10)
-e.mainloop()
+
+if __name__ == '__main__':
+
+    from optparse import OptionParser
+
+    parser = OptionParser(description="Random maze game")
+    parser.add_option('-W', '--width', type=int, default=21,
+                      help="maze width (default 21)")
+    parser.add_option('-H', '--height', type=int, default=21,
+                      help="maze height (default 21)")
+    parser.add_option('-s', '--size', type=int, default=10,
+                      help="cell size (default 10)")
+    args, _ = parser.parse_args()
+
+    for arg in ('width', 'height'):
+        if getattr(args, arg) % 2 == 0:
+            setattr(args, arg, getattr(args, arg) + 1)
+            print ("Warning: %s must be odd, using %d instead") % \
+                (arg, getattr(args, arg))
+
+    sys.setrecursionlimit(10000)
+
+    app = Application(args.width, args.height, args.size)
+    app.master.title('Maze game')
+    app.mainloop()
+
